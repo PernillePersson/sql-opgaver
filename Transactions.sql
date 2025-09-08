@@ -34,6 +34,7 @@ CREATE TABLE "TransferLogs" (
 alter table "TransferLogs" add constraint fk_log_fromStudents_id foreign key (fromStudentId) references "Students"(id);
 alter table "TransferLogs" add constraint fk_log_toStudents_id foreign key (toStudentId) references "Students"(id);
 
+-- Transaction:
 DO $$
 BEGIN
 
@@ -66,3 +67,4 @@ Ved fejl: rollback og returnér’ en klar fejlbesked.
 Hint: I SQL Server brug TRY…CATCH med ROLLBACK; i PostgreSQL EXCEPTION-blok i plpgsql; i MySQL brug handler.*/
 
 --Måske en løsning:
+
