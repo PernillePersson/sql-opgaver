@@ -66,5 +66,35 @@ Ved succes: commit og returnér antal tilmeldte.
 Ved fejl: rollback og returnér’ en klar fejlbesked.
 Hint: I SQL Server brug TRY…CATCH med ROLLBACK; i PostgreSQL EXCEPTION-blok i plpgsql; i MySQL brug handler.*/
 
---Måske en løsning:
+CREATE OR REPLACE PROCEDURE Enroll_many_on_course(courseId INT, studentIds INT[])
+LANGUAGE plpgsql
+AS $$
+    DECLARE
+    studentId INT;
+    inserted_count INT := 0;
+    
+    BEGIN
+
+    FOREACH studentId IN ARRAY studentIds LOOP
+        
+        INSERT INTO "Enrollments" (studentid, courseid) VALUES 
+            (studentid, courseId);
+        
+        inserted_count := inserted_count + 1; 
+    END LOOP;
+
+EXCEPTION 
+    WHEN unique_violation THEN
+        RAISE EXCEPTION 'Student % is already enrolled in course %', studentId, courseId;
+
+    COMMIT;
+    
+    RAISE NOTICE 'Successfully inserted % students', inserted_count;
+END;
+$$;
+
+--Call:
+BEGIN;
+CALL Enroll_many_on_course(2, ARRAY[2,3,4]);
+COMMIT;
 
