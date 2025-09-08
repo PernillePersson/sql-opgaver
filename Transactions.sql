@@ -22,16 +22,6 @@ insert into "StudentWallet" (studentId, balance) values
   (5, 200),
   (6, 200);
 
-/*02, Batch-tilmeldinger som stored procedure
-Formål: Transaktion inde i en stored procedure + constraint-fejl som rollback-trigger.
-
-Krav
-Skriv en stored procedure enroll_many_on_course(course_id, ...) der forsøger at tilmelde flere studerende til samme kursus i én transaktion.
-Regler:
-Hvis en eneste tilmelding vil bryde en constraint (fx dublet i Enrollments eller student findes ikke), skal hele transaktionen rulles tilbage.
-Ved succes: commit og returnér antal tilmeldte.
-Ved fejl: rollback og returnér’ en klar fejlbesked.
-Hint: I SQL Server brug TRY…CATCH med ROLLBACK; i PostgreSQL EXCEPTION-blok i plpgsql; i MySQL brug handler.*/
 
 -- Logtabel til statusbeskeder
 create table transfer_log (
@@ -89,3 +79,44 @@ END;
 $$;
 
 COMMIT;
+
+
+/*02, Batch-tilmeldinger som stored procedure
+Formål: Transaktion inde i en stored procedure + constraint-fejl som rollback-trigger.
+
+Krav
+Skriv en stored procedure enroll_many_on_course(course_id, ...) der forsøger at tilmelde flere studerende til samme kursus i én transaktion.
+Regler:
+Hvis en eneste tilmelding vil bryde en constraint (fx dublet i Enrollments eller student findes ikke), skal hele transaktionen rulles tilbage.
+Ved succes: commit og returnér antal tilmeldte.
+Ved fejl: rollback og returnér’ en klar fejlbesked.
+Hint: I SQL Server brug TRY…CATCH med ROLLBACK; i PostgreSQL EXCEPTION-blok i plpgsql; i MySQL brug handler.*/
+
+--Måske en løsning:
+CREATE OR REPLACE PROCEDURE enroll_many_on_course(p_course_id int, p_student_ids int[])
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    stu int;
+    inserted_count int := 0;
+BEGIN
+    -- Start eksplicit transaktion
+    BEGIN
+        FOREACH stu IN ARRAY p_student_ids LOOP
+            INSERT INTO Enrollments(student_id, course_id)
+            VALUES (stu, p_course_id);
+            inserted_count := inserted_count + 1;
+        END LOOP;
+
+        -- Commit hvis alle lykkes
+        COMMIT;
+        RAISE NOTICE 'Enrolled % students on course %', inserted_count, p_course_id;
+
+    EXCEPTION
+        WHEN OTHERS THEN
+            -- Rollback hvis noget fejler
+            ROLLBACK;
+            RAISE NOTICE 'Enrollment failed: %', SQLERRM;
+    END;
+END;
+$$;
